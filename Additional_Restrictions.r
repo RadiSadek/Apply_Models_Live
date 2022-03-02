@@ -97,8 +97,8 @@ gen_restrict_citycash_beh <- function(scoring_df,prev_amount,products,all_id,
   
   # Limit based on maximum amount differential
   for(i in 1:nrow(all_id)){
-     all_id$amount[i] <- suppressWarnings(fetch(dbSendQuery(con,
-      gen_big_sql_query(db_name,all_id$id[i])), n=-1))$amount
+     all_id$amount[i] <- suppressWarnings(dbFetch(dbSendQuery(con,
+      gen_big_sql_query(db_name,all_id$id[i]))))$amount
   }
   max_prev_amount <- max(all_id$amount[
      all_id$company_id==all_id$company_id[all_id$id==application_id] & 
@@ -160,14 +160,13 @@ gen_restrict_credirect_beh <- function(scoring_df,all_df,all_id,application_id,
   # Get amounts of previous credits
   if(nrow(all_id_local)>0){
     for(i in 1:nrow(all_id_local)){
-      all_id_local$amount[i] <- fetch(dbSendQuery(con,
-       gen_last_cred_amount_query(all_id_local$id[i],db_name)), n=-1)$amount}
+      all_id_local$amount[i] <- suppressWarnings(dbFetch(dbSendQuery(con,
+       gen_last_cred_amount_query(all_id_local$id[i],db_name))))$amount}
   }
   if(nrow(all_id_local_active)>0){
     for(i in 1:nrow(all_id_local_active)){
-      all_id_local_active$amount[i] <- fetch(dbSendQuery(con,
-       gen_last_cred_amount_query(all_id_local_active$id[i],db_name)), 
-       n=-1)$amount}
+      all_id_local_active$amount[i] <- suppressWarnings(dbFetch(dbSendQuery(con,
+       gen_last_cred_amount_query(all_id_local_active$id[i],db_name))))$amount}
   }
   
   # Get nb passed installments at deactivation & if prev is until next salary
@@ -346,12 +345,12 @@ gen_restrict_beh_refinance <- function(db_name,all_df,all_id,
     }
     
     # Active PO refinance offers
-    check_active_refs_office <- suppressWarnings(fetch(dbSendQuery(con,
-        gen_po_active_refinance_query(db_name,string_sql)), n=-1))
+    check_active_refs_office <- suppressWarnings(dbFetch(dbSendQuery(con,
+        gen_po_active_refinance_query(db_name,string_sql))))
     
     # Terminated PO refinance offers
-    check_term_refs_office <- suppressWarnings(fetch(dbSendQuery(con,
-        gen_po_refinance_query(db_name,string_sql)), n=-1))
+    check_term_refs_office <- suppressWarnings(dbFetch(dbSendQuery(con,
+        gen_po_refinance_query(db_name,string_sql))))
     check_term_refs_office <- subset(check_term_refs_office,
         substring(check_term_refs_office$deleted_at,12,20)!="04:00:00")
     
@@ -402,8 +401,8 @@ gen_restrict_beh_refinance <- function(db_name,all_df,all_id,
       for(i in 2:nrow(all_id_local_active)){
         string_sql <- paste(string_sql,all_id_local_active$id[i],sep=",")}
     }
-    max_dpd <- max(suppressWarnings(fetch(dbSendQuery(con,
-        gen_plan_main_select_query(db_name,string_sql)), n=-1))$max_delay)
+    max_dpd <- max(suppressWarnings(dbFetch(dbSendQuery(con,
+        gen_plan_main_select_query(db_name,string_sql))))$max_delay)
     if(max_dpd>=300){
       scoring_df$color <- ifelse(scoring_df$color>1 & scoring_df$score!=
                                    "NULL",1,scoring_df$color)

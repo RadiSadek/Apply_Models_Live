@@ -63,7 +63,7 @@ gen_products_query_desc <- function(db_name,all_df){
 gen_income_sql_query <- function(db_name,application_id){
   return(paste("SELECT application_id, amount, sub_type 
   FROM ",db_name,".credits_applications_clients_money_income 
-  WHERE deleted_at IS NULL AND application_id=",application_id, sep=""))
+  WHERE deleted_at IS NULL AND application_id=",all_df$application_id, sep=""))
 }
 
 # Define query for normal expenses 
@@ -103,10 +103,10 @@ gen_total_amount_curr_query <- function(db_name,application_id){
 }
 
 # Define query to get the pay days of previous actives credits
-gen_plan_main_actives_past_query <- function(db_name,all_actives_past){
+gen_plan_main_actives_past_query <- function(db_name,string_id){
   return(paste("SELECT application_id, pay_day
   FROM ",db_name,".credits_plan_main WHERE application_id in(", 
-  all_actives_past$id," )", sep=""))
+  string_id," )", sep=""))
 }
 
 # Define query to get total amount of current application amount
@@ -225,7 +225,7 @@ gen_query_ckr <- function(all_df,all_credits,type_of){
   ON ",db_name,".clients_ckr_files.id=",db_name,".clients_ckr_files_data.file_id
   WHERE ",db_name,".clients_ckr_files_data.type=",type_of," AND ",db_name,
                      ".clients_ckr_files.client_id=",all_df$client_id, sep ="")
-  result_df <- suppressWarnings(fetch(dbSendQuery(con, query_ckr), n=-1))
+  result_df <- suppressWarnings(dbFetch(dbSendQuery(con, query_ckr)))
   # result_df <- merge(result_df, all_credits[,c("id","date")], 
   #                    by.x = "application_id",
   #                    by.y = "id", all.x = TRUE)
@@ -378,7 +378,7 @@ gen_self_approval_office_query <- function(db_name,input){
 # Get API data
 gen_api_data <- function(db_name,application_id){
   return(paste(
-    "SELECT payload
+    "SELECT CAST(payload AS CHAR)
      FROM ",db_name,".api_credits_applications
      WHERE application_id IN (", 
     application_id,")",sep=""))

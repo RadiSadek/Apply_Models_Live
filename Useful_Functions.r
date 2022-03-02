@@ -317,4 +317,30 @@ gen_decline_reason <- function(scoring_df,all_df,level,input){
   return(result)
 }
     
+# Correct time format 
+gen_time_format <- function(input){
+  input$created_at2 <- as.POSIXct(Sys.Date())
+  input$signed_at2 <- as.POSIXct(Sys.Date())
+  input$deactivated_at2 <- as.POSIXct(Sys.Date())
+  input$date <- as.POSIXct(Sys.Date())
+  for(i in 1:nrow(input)){
+    if(input$status[i] %in% c(4,5)){
+      input$date[i] <- input$signed_at[i]
+      input$signed_at[i] <- input$signed_at[i]
+    } else {
+      input$date[i] <- input$created_at[i]
+    }
+    input$signed_at2[i] <- input$signed_at[i]
+    input$created_at2[i] <- input$created_at[i]
+    input$deactivated_at2[i] <- input$deactivated_at[i]
+  }
+  input$signed_at <- input$signed_at2
+  input$created_at <- input$created_at2
+  input$deactivated_at <- input$deactivated_at2
+  input <- input[ , -which(names(input) %in% c("signed_at2","created_at2",
+                                               "deactivated_at2"))]
+  return(input)
+}
+
+
 
