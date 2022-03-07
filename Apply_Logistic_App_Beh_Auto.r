@@ -13,9 +13,7 @@
 ########################
 
 # Libraries
-suppressMessages(suppressWarnings(require(RMariaDB)))
-suppressMessages(suppressWarnings(require(DBI)))
-suppressMessages(suppressWarnings(require(Rcpp)))
+suppressMessages(suppressWarnings(library(RMySQL)))
 suppressMessages(suppressWarnings(library(here)))
 suppressMessages(suppressWarnings(library(dotenv)))
 suppressMessages(suppressWarnings(require("reshape")))
@@ -63,12 +61,12 @@ db_username <- Sys.getenv("DB_USERNAME",
 db_password <- Sys.getenv("DB_PASSWORD", 
                           unset = "secret", 
                           names = FALSE)
-con <- dbConnect(RMariaDB::MariaDB(), dbname = db_name, 
-                 host =db_host,port = db_port,user = db_username,
-                 password = db_password)
-
+con <- dbConnect(MySQL(), user=db_username, 
+                 password=db_password, dbname=db_name, 
+                 host=db_host, port = db_port)
 sqlMode <- paste("SET sql_mode=''", sep ="")
-suppressWarnings(dbFetch(dbSendQuery(con, sqlMode)))
+suppressWarnings(fetch(dbSendQuery(con, sqlMode), 
+                       n=-1))
 
 
 #################################
@@ -132,9 +130,10 @@ risky_address <- read.csv(file.path(base_dir, "risky_coordinates",
 ####################################
 
 # Read credits applications
-all_df <- suppressWarnings(dbFetch(dbSendQuery(con, 
-              gen_big_sql_query(db_name,application_id))))
-all_df <- gen_time_format(all_df)
+all_df <- suppressWarnings(fetch(dbSendQuery(con, 
+              gen_big_sql_query(db_name,application_id)), n=-1))
+all_df$date <- ifelse(all_df$status %in% c(4,5), all_df$signed_at, 
+                      all_df$created_at)
 
 
 # Apply some checks to main credit dataframe
@@ -147,21 +146,22 @@ if(nrow(all_df)>1){
 
 
 # Read product's periods and amounts
-products  <- suppressWarnings(dbFetch(dbSendQuery(con, 
-               gen_products_query(db_name,all_df))))
-products_desc <- suppressWarnings(dbFetch(dbSendQuery(con, 
-               gen_products_query_desc(db_name,all_df))))
+products  <- suppressWarnings(fetch(dbSendQuery(con, 
+               gen_products_query(db_name,all_df)), n=-1))
+products_desc <- suppressWarnings(fetch(dbSendQuery(con, 
+               gen_products_query_desc(db_name,all_df)), n=-1))
 
 
 # Read all previous credits or applications of client
-all_credits <- suppressWarnings(dbFetch(dbSendQuery(con, 
-      gen_all_credits_query(db_name,all_df))))
-all_credits <- gen_time_format(all_credits)
+all_credits <- suppressWarnings(fetch(dbSendQuery(con, 
+      gen_all_credits_query(db_name,all_df)), n=-1))
+all_credits$date <- ifelse(all_credits$status %in% c(4,5), 
+      all_credits$signed_at, all_credits$created_at)
 
 
 # Check if client has a risk profile
-risk <- suppressWarnings(dbFetch(dbSendQuery(con,
-    gen_risky_query(db_name,all_df))))
+risk <- suppressWarnings(fetch(dbSendQuery(con, 
+    gen_risky_query(db_name,all_df)), n=-1))
 
 
 # Check number of varnat 
@@ -169,8 +169,8 @@ flag_varnat <- gen_nb_varnat(all_credits)
 
 
 # Read total amount of current credit
-total_amount_curr <- suppressWarnings(dbFetch(dbSendQuery(con, 
-    gen_total_amount_curr_query(db_name,application_id))))
+total_amount_curr <- suppressWarnings(fetch(dbSendQuery(con, 
+    gen_total_amount_curr_query(db_name,application_id)), n=-1))
 
 
 # Read CKR 
@@ -214,30 +214,31 @@ nrow_all_id_max_delay <- nrow(all_id_max_delay)
 if (nrow_all_id_max_delay>=1){
   list_ids_max_delay <- gen_select_relevant_ids(all_id_max_delay,
      nrow_all_id_max_delay)
-  data_plan_main_select <- suppressWarnings(dbFetch(dbSendQuery(con, 
-     gen_plan_main_select_query(db_name,list_ids_max_delay))))
+  data_plan_main_select <- suppressWarnings(fetch(dbSendQuery(con, 
+     gen_plan_main_select_query(db_name,list_ids_max_delay)), n=-1))
 } 
 
 
 # Get average expenses according to client's address 
-addresses <- suppressWarnings(dbFetch(dbSendQuery(con, 
-  gen_address_query(all_df$client_id,"App\\\\Models\\\\Clients\\\\Client"))))
+addresses <- suppressWarnings(fetch(dbSendQuery(con, 
+  gen_address_query(all_df$client_id,"App\\\\Models\\\\Clients\\\\Client")), 
+  n=-1))
 if(nrow(addresses)==0){
-  addresses <- suppressWarnings(dbFetch(dbSendQuery(con, 
+  addresses <- suppressWarnings(fetch(dbSendQuery(con, 
   gen_address_query(all_df$client_id,
-  "App\\\\Models\\\\Credits\\\\Applications\\\\Application"))))
+  "App\\\\Models\\\\Credits\\\\Applications\\\\Application")), n=-1))
 }
 
 
 # Get if office is self approval
-all_df$self_approval <- suppressWarnings(dbFetch(dbSendQuery(con, 
-  gen_self_approval_office_query(db_name,all_df$office_id))))$self_approve
+all_df$self_approval <- suppressWarnings(fetch(dbSendQuery(con, 
+  gen_self_approval_office_query(db_name,all_df$office_id)), n=-1))$self_approve
 
 
 # Get dataframe of API data 
 tryCatch(
-  api_df <- gen_dataframe_json(suppressWarnings(dbFetch(dbSendQuery(con,
-  gen_api_data(db_name,application_id))))), 
+  api_df <- gen_dataframe_json(suppressWarnings(fetch(dbSendQuery(
+    con,gen_api_data(db_name,application_id)), n=-1))), 
   error=function(e) 
   {api_df <- NA})
 if(!exists('api_df')){
@@ -418,8 +419,8 @@ if(flag_beh_company==1){
 
 
 # Get flag if client is dead
-flag_is_dead <- ifelse(is.na(suppressWarnings(dbFetch(dbSendQuery(con,
- gen_flag_is_dead(db_name,all_df$client_id))))$dead_at),0,1)
+flag_is_dead <- ifelse(is.na(suppressWarnings(fetch(dbSendQuery(con,
+ gen_flag_is_dead(db_name,all_df$client_id)), n=-1))$dead_at),0,1)
 
 
 # Get flag if client is in a risky address
@@ -545,7 +546,10 @@ write_sql_query <- paste("
 suppressMessages(dbSendQuery(con,write_sql_query))
 suppressMessages(dbWriteTable(con, name = "credits_applications_scoring", 
   value = scoring_df,
-  overwrite = FALSE, row.names = FALSE, append = TRUE))
+  field.types = c(application_id="numeric", amount="integer", 
+  period="integer", score="character(20)",color="integer", 
+  display_score="character(20)",pd="numeric",created_at="datetime"),
+  row.names = F, append = T))
 
 
 

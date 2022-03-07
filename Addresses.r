@@ -8,10 +8,10 @@
 gen_coordinates <- function(db_name,application_id,all_df) {
   
   # Read addresses (per application_id and per client)
-  address <- suppressWarnings(dbFetch(dbSendQuery(con,
-    gen_address_coordinates_query(db_name,application_id))))
-  address_client <- suppressWarnings(dbFetch(dbSendQuery(con,
-    gen_address_client_coordinates_query(db_name,all_df))))
+  address <- suppressWarnings(fetch(dbSendQuery(con,
+    gen_address_coordinates_query(db_name,application_id)), n=-1))
+  address_client <- suppressWarnings(fetch(dbSendQuery(con,
+    gen_address_client_coordinates_query(db_name,all_df)), n=-1))
   if(nrow(address)>0){
     address$per_app <- 1
   }

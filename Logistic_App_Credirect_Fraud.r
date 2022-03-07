@@ -55,16 +55,16 @@ gen_app_credirect_fraud <- function(df,scoring_df,products,
   fraud_flag  <- gen_group_scores_fraud(apply_logit)
   
   # Apply check for phone number
-  check_phone <- suppressWarnings(dbFetch(dbSendQuery(con, 
-    gen_get_phone_numbers(db_name))))
+  check_phone <- suppressWarnings(fetch(dbSendQuery(con, 
+    gen_get_phone_numbers(db_name)), n=-1))
   check_phone <- as.data.frame(check_phone[!duplicated(check_phone$client_id),])
   if(nrow(check_phone)>1){
       fraud_flag <- 1
   }
   
   # Apply email criteria
-  check_email <- suppressWarnings(dbFetch(dbSendQuery(con, 
-    gen_get_email (db_name))))
+  check_email <- suppressWarnings(fetch(dbSendQuery(con, 
+    gen_get_email (db_name)), n=-1))
   check_email <- as.data.frame(check_email[!duplicated(check_email$id),])
   if(nrow(check_email)>1){
     fraud_flag <- 1
