@@ -38,7 +38,7 @@ main_dir <- "C:\\Projects\\Apply_Scoring\\"
 # Read argument of ID
 args <- commandArgs(trailingOnly = TRUE)
 application_id <- args[1]
-#application_id <- 1073023
+application_id <- 1073023
 product_id <- NA
 
 
@@ -47,25 +47,25 @@ setwd(main_dir)
 
 
 # Load other r files
-source(paste(main_dir,"Apply_Models\\Additional_Restrictions.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Addresses.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Adjust_Scoring_Prior_Approval.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Logistic_App_CityCash.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Logistic_App_Credirect_installments.r", 
+source(paste(main_dir,"Apply_Models_Live\\Additional_Restrictions.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Addresses.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Adjust_Scoring_Prior_Approval.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Logistic_App_CityCash.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Logistic_App_Credirect_installments.r", 
        sep=""))
-source(paste(main_dir,"Apply_Models\\Logistic_App_Credirect_payday.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Logistic_App_Credirect_Fraud.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Logistic_Beh_CityCash.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Logistic_Beh_Credirect.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Useful_Functions.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Empty_Fields.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Cutoffs.r", sep=""))
-source(paste(main_dir,"Apply_Models\\SQL_queries.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Disposable_Income.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Behavioral_Variables.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Normal_Variables.r", sep=""))
-source(paste(main_dir,"Apply_Models\\CKR_variables.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Generate_Adjust_Score.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Logistic_App_Credirect_payday.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Logistic_App_Credirect_Fraud.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Logistic_Beh_CityCash.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Logistic_Beh_Credirect.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Useful_Functions.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Empty_Fields.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Cutoffs.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\SQL_queries.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Disposable_Income.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Behavioral_Variables.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Normal_Variables.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\CKR_variables.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Generate_Adjust_Score.r", sep=""))
 
 
 # Load predefined libraries
@@ -86,8 +86,7 @@ risky_address <- read.csv("risky_coordinates\\risky_coordinates.csv",sep=";")
 ####################################
 
 # Read credits applications
-all_df <- suppressWarnings(fetch(dbSendQuery(con, 
-              gen_big_sql_query(db_name,application_id)), n=-1))
+all_df <- gen_query(con,gen_big_sql_query(db_name,application_id))
 all_df$date <- ifelse(all_df$status %in% c(4,5), all_df$signed_at, 
                       all_df$created_at)
 
@@ -102,22 +101,18 @@ if(nrow(all_df)>1){
 
 
 # Read product's periods and amounts
-products  <- suppressWarnings(fetch(dbSendQuery(con, 
-               gen_products_query(db_name,all_df)), n=-1))
-products_desc <- suppressWarnings(fetch(dbSendQuery(con, 
-               gen_products_query_desc(db_name,all_df)), n=-1))
+products  <- gen_query(con,gen_products_query(db_name,all_df))
+products_desc <- gen_query(con,gen_products_query_desc(db_name,all_df))
 
 
 # Read all previous credits or applications of client
-all_credits <- suppressWarnings(fetch(dbSendQuery(con, 
-      gen_all_credits_query(db_name,all_df)), n=-1))
+all_credits <- gen_query(con,gen_all_credits_query(db_name,all_df))
 all_credits$date <- ifelse(all_credits$status %in% c(4,5), 
       all_credits$signed_at, all_credits$created_at)
 
 
 # Check if client has a risk profile
-risk <- suppressWarnings(fetch(dbSendQuery(con, 
-    gen_risky_query(db_name,all_df)), n=-1))
+risk <- gen_query(con,gen_risky_query(db_name,all_df))
 
 
 # Check number of varnat 
@@ -125,8 +120,8 @@ flag_varnat <- gen_nb_varnat(all_credits)
 
 
 # Read total amount of current credit
-total_amount_curr <- suppressWarnings(fetch(dbSendQuery(con, 
-    gen_total_amount_curr_query(db_name,application_id)), n=-1))
+total_amount_curr <- gen_query(con,gen_total_amount_curr_query(
+  db_name,application_id))
 
 
 # Read CKR 
@@ -170,31 +165,30 @@ nrow_all_id_max_delay <- nrow(all_id_max_delay)
 if (nrow_all_id_max_delay>=1){
   list_ids_max_delay <- gen_select_relevant_ids(all_id_max_delay,
      nrow_all_id_max_delay)
-  data_plan_main_select <- suppressWarnings(fetch(dbSendQuery(con, 
-     gen_plan_main_select_query(db_name,list_ids_max_delay)), n=-1))
+  data_plan_main_select <- gen_query(con,
+     gen_plan_main_select_query(db_name,list_ids_max_delay))
 } 
 
 
 # Get average expenses according to client's address 
-addresses <- suppressWarnings(fetch(dbSendQuery(con, 
-  gen_address_query(all_df$client_id,"App\\\\Models\\\\Clients\\\\Client")), 
-  n=-1))
+addresses <- gen_query(con,
+  gen_address_query(all_df$client_id,"App\\\\Models\\\\Clients\\\\Client"))
 if(nrow(addresses)==0){
-  addresses <- suppressWarnings(fetch(dbSendQuery(con, 
+  addresses <- gen_query(con,
   gen_address_query(all_df$client_id,
-  "App\\\\Models\\\\Credits\\\\Applications\\\\Application")), n=-1))
+  "App\\\\Models\\\\Credits\\\\Applications\\\\Application"))
 }
 
 
 # Get if office is self approval
-all_df$self_approval <- suppressWarnings(fetch(dbSendQuery(con, 
-  gen_self_approval_office_query(db_name,all_df$office_id)), n=-1))$self_approve
+all_df$self_approval <- gen_query(con,
+  gen_self_approval_office_query(db_name,all_df$office_id))$self_approve
 
 
 # Get dataframe of API data 
 tryCatch(
-  api_df <- gen_dataframe_json(suppressWarnings(fetch(dbSendQuery(
-    con,gen_api_data(db_name,application_id)), n=-1))), 
+  api_df <- gen_dataframe_json(gen_query(con,
+    gen_api_data(db_name,application_id))),
   error=function(e) 
   {api_df <- NA})
 if(!exists('api_df')){
@@ -357,8 +351,8 @@ df <- gen_norm_var2(df)
 
 
 # Compute flag exclusion for cession in CKR
-#flag_cession <- ifelse(flag_credirect==1 & df$amount_cession_total>0, 1, 0)
-flag_cession <- ifelse(df$amount_cession_total>0, 1, 0)
+flag_cession <- ifelse(flag_credirect==1 & df$amount_cession_total>0, 1, 0)
+
 
 # Compute flag if new credirect but old citycash
 flag_new_credirect_old_city <- ifelse(flag_credirect==1 & flag_beh==1 &
@@ -375,8 +369,8 @@ if(flag_beh_company==1){
 
 
 # Get flag if client is dead
-flag_is_dead <- ifelse(is.na(suppressWarnings(fetch(dbSendQuery(con,
- gen_flag_is_dead(db_name,all_df$client_id)), n=-1))$dead_at),0,1)
+flag_is_dead <- ifelse(is.na(gen_query(con,
+ gen_flag_is_dead(db_name,all_df$client_id))$dead_at),0,1)
 
 
 # Get flag if client is in a risky address

@@ -53,8 +53,7 @@ application_id <- last_id
 
 
 # Read credits applications
-all_df <- suppressWarnings(fetch(dbSendQuery(con, 
-              gen_big_sql_query(db_name,application_id)), n=-1))
+all_df <- gen_query(con,gen_big_sql_query(db_name,application_id))
 all_df$date <- ifelse(all_df$status %in% c(4,5), all_df$signed_at, 
                       all_df$created_at)
 curr_amount <- all_df$amount
@@ -70,10 +69,10 @@ if(nrow(all_df)>1){
 
 
 # Read product's periods and amounts
-products  <- suppressWarnings(fetch(dbSendQuery(con, 
-      gen_products_query(db_name,all_df)), n=-1))
-products_desc <- suppressWarnings(fetch(dbSendQuery(con, 
-      gen_products_query_desc(db_name,all_df)), n=-1))
+products  <- gen_query(con, 
+      gen_products_query(db_name,all_df))
+products_desc <- gen_query(con,
+      gen_products_query_desc(db_name,all_df))
 
 
 # Recorrect amount to get highest possible amount
@@ -81,15 +80,14 @@ all_df$amount <- max(products$amount)
 
 
 # Read all previous credits or applications of client
-all_credits <- suppressWarnings(fetch(dbSendQuery(con, 
-        gen_all_credits_query(db_name,all_df)), n=-1))
+all_credits <- gen_query(con, 
+        gen_all_credits_query(db_name,all_df))
 all_credits$date <- ifelse(all_credits$status %in% c(4,5), 
                            all_credits$signed_at, all_credits$created_at)
 
 
 # Check if client has a risk profile
-risk <- suppressWarnings(fetch(dbSendQuery(con, 
-   gen_risky_query(db_name,all_df)), n=-1))
+risk <- gen_query(con,gen_risky_query(db_name,all_df))
 
 
 # Check number of varnat 
@@ -97,8 +95,8 @@ flag_varnat <- gen_nb_varnat(all_credits)
 
 
 # Read total amount of current credit
-total_amount_curr <- suppressWarnings(fetch(dbSendQuery(con, 
-  gen_total_amount_curr_query(db_name,application_id)), n=-1))
+total_amount_curr <- gen_query(con, 
+  gen_total_amount_curr_query(db_name,application_id))
 
 
 # Read CKR 
@@ -148,31 +146,30 @@ nrow_all_id_max_delay <- nrow(all_id_max_delay)
 if (nrow_all_id_max_delay>=1){
   list_ids_max_delay <- gen_select_relevant_ids(all_id_max_delay,
      nrow_all_id_max_delay)
-  data_plan_main_select <- suppressWarnings(fetch(dbSendQuery(con, 
-     gen_plan_main_select_query(db_name,list_ids_max_delay)), n=-1))
+  data_plan_main_select <- gen_query(con, 
+     gen_plan_main_select_query(db_name,list_ids_max_delay))
 } 
 
 
 # Get average expenses according to client's address 
-addresses <- suppressWarnings(fetch(dbSendQuery(con, 
-  gen_address_query(all_df$client_id,"App\\\\Models\\\\Clients\\\\Client")), 
-  n=-1))
+addresses <- gen_query(con, 
+  gen_address_query(all_df$client_id,"App\\\\Models\\\\Clients\\\\Client"))
 if(nrow(addresses)==0){
-  addresses <- suppressWarnings(fetch(dbSendQuery(con, 
+  addresses <- gen_query(con, 
   gen_address_query(all_df$client_id,
-  "App\\\\Models\\\\Credits\\\\Applications\\\\Application")), n=-1))
+  "App\\\\Models\\\\Credits\\\\Applications\\\\Application"))
 }
 
 
 # Get if office is self approval
-all_df$self_approval <- suppressWarnings(fetch(dbSendQuery(con, 
-  gen_self_approval_office_query(db_name,all_df$office_id)), n=-1))$self_approve
+all_df$self_approval <- gen_query(con, 
+  gen_self_approval_office_query(db_name,all_df$office_id))$self_approve
 
 
 # Get dataframe of API data 
 tryCatch(
-  api_df <- gen_dataframe_json(suppressWarnings(fetch(dbSendQuery(
-    con,gen_api_data(db_name,application_id)), n=-1))), 
+  api_df <- gen_dataframe_json(suppressWarnings(gen_query(con,
+    gen_api_data(db_name,application_id)))), 
   error=function(e) 
   {api_df <- NA})
 if(!exists('api_df')){
@@ -349,8 +346,8 @@ flag_new_credirect_old_city <- ifelse(flag_credirect==1 & flag_beh==1 &
 
 
 # Get flag if client is dead
-flag_is_dead <- ifelse(is.na(suppressWarnings(fetch(dbSendQuery(con,
- gen_flag_is_dead(db_name,all_df$client_id)), n=-1))$dead_at),0,1)
+flag_is_dead <- ifelse(is.na(gen_query(con,
+ gen_flag_is_dead(db_name,all_df$client_id))$dead_at),0,1)
 
 
 # Get flag if client is in a risky address
@@ -401,8 +398,8 @@ correct_scoring_df <- subset(scoring_df,scoring_df$color!=1 &
 
 # Get highest amount of previous credits
 for(i in 1:nrow(all_id)){
-  all_id$amount[i] <- suppressWarnings(fetch(dbSendQuery(con,
-    gen_big_sql_query(db_name,all_id$id[i])), n=-1))$amount
+  all_id$amount[i] <- gen_query(con,
+    gen_big_sql_query(db_name,all_id$id[i]))$amount
 }
 max_prev_amount <- max(all_id$amount[
   all_id$company_id==all_id$company_id[all_id$id==application_id]])

@@ -3,6 +3,11 @@
 ######## Define some extra useful functions  ######
 ###################################################
 
+# Define function to generate query
+gen_query <- function(con,input){
+  return(suppressWarnings(fetch(dbSendQuery(con,input), n=-1)))
+}
+
 # Define function to get apply cutoffs
 gen_group_scores <- function(var,office,flag_beh,flag_credirect,
                              flag_credit_next_salary){

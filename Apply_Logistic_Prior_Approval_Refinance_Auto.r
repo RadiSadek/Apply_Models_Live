@@ -80,16 +80,16 @@ source(file.path(base_dir,"Useful_Functions.r"))
 #############################################################
 
 # Read credit applications 
-get_actives_sql <- suppressWarnings(dbSendQuery(con, paste("
+get_actives_sql <- paste("
 SELECT id, status, date, product_id, client_id
 FROM ",db_name,".credits_applications 
-WHERE status in (4,5)",sep="")))
-all_credits <- fetch(get_actives_sql,n=-1)
+WHERE status in (4,5)",sep="")
+all_credits <- gen_query(con,get_actives_sql)
 
 
 # Join company ID
-company_id <- suppressWarnings(fetch(dbSendQuery(con, 
-    gen_get_company_id_query(db_name)), n=-1))
+company_id <- gen_query(con, 
+    gen_get_company_id_query(db_name))
 all_credits <- merge(all_credits,company_id,by.x = "product_id",
     by.y = "id",all.x = TRUE)
 
@@ -108,16 +108,16 @@ select <- subset(select,select$time_since<=200)
 po_sql_query <- paste(
   "SELECT application_id, created_at, deleted_at, product_id, min_amount
    FROM ",db_name,".prior_approval_refinances",sep="")
-po <- suppressWarnings(fetch(dbSendQuery(con, po_sql_query), n=-1))
+po <- gen_query(con, po_sql_query)
 po_raw <- po
 select <- select[!(select$id %in% po$application_id),]
 
 
 # Read daily installments and payments
-data_sql_daily <- suppressWarnings(dbSendQuery(con, paste("
+data_sql_daily <- paste("
 SELECT application_id, installment_num, discount_amount
-FROM ",db_name,".credits_plan_main",sep="")))
-daily <- fetch(data_sql_daily,n=-1)
+FROM ",db_name,".credits_plan_main")
+daily <- gen_query(con,data_sql_daily)
 daily <- daily[daily$application_id %in% select$id,]
 daily_raw <- daily
 
@@ -132,13 +132,13 @@ daily <- daily[!duplicated(daily$application_id),]
 
 
 # Compute paids installment ratio
-paid_install_sql <- suppressWarnings(dbSendQuery(con, paste("
+paid_install_sql <- paste("
 SELECT application_id, COUNT(application_id) as installments_paid
 FROM ",db_name,".credits_plan_main
 WHERE payed_at IS NOT NULL AND pay_day<= '",substring(Sys.time(),1,10),
 "' GROUP BY application_id;
-", sep ="")))
-paid_install <- fetch(paid_install_sql,n=-1)
+", sep ="")
+paid_install <- gen_query(con,paid_install_sql)
 daily <- merge(daily,paid_install,by.x = "application_id",
    by.y = "application_id",all.x = TRUE)
 daily$installments_paid <- ifelse(is.na(daily$installments_paid),0,
@@ -156,19 +156,19 @@ select <- subset(select,select$installment_ratio>=0.3 &
 
 
 # Get final credit amount
-credit_amount_sql <- suppressWarnings(dbSendQuery(con, paste("
+credit_amount_sql <- paste("
 SELECT application_id,final_credit_amount, amount as credit_amount
-FROM ",db_name,".credits_plan_contract", sep ="")))
-credit_amount <- fetch(credit_amount_sql,n=-1)
+FROM ",db_name,".credits_plan_contract", sep ="")
+credit_amount <- gen_query(con,credit_amount_sql)
 select <- merge(select,credit_amount,by.x = "id",
    by.y = "application_id",all.x = TRUE)
 
 
 # Get eventual taxes
-taxes_sql <- suppressWarnings(dbSendQuery(con, paste("
+taxes_sql <- paste("
 SELECT application_id, amount, paid_amount 
-FROM ",db_name,".credits_plan_taxes", sep ="")))
-taxes <- fetch(taxes_sql,n=-1)
+FROM ",db_name,".credits_plan_taxes", sep ="")
+taxes <- gen_query(con,taxes_sql)
 taxes_raw <- taxes
 taxes <- taxes[taxes$application_id %in% daily$application_id,]
 taxes_agg <- aggregate(taxes$amount,
@@ -183,19 +183,19 @@ names(discount_agg) <- c("application_id","discount_amount")
 
 
 # Get all payments for each credit
-paid <- fetch(suppressWarnings(dbSendQuery(con, paste("
+paid <- gen_query(con, paste("
 SELECT object_id, amount, pay_date 
 FROM ",db_name,".cash_flow
 WHERE nomenclature_id in (90,100,101) 
-AND deleted_at IS NULL AND object_type=4",sep=""))), n=-1)
+AND deleted_at IS NULL AND object_type=4",sep=""))
 paid_raw <- paid
 paid <- paid[paid$object_id %in% daily$application_id,]
 
 
 # Get products periods and amounts of products
-products <- fetch(suppressWarnings(dbSendQuery(con, paste("
+products <- gen_query(con, paste("
 SELECT product_id, amount 
-FROM ",db_name,".products_periods_and_amounts",sep=""))), n=-1)
+FROM ",db_name,".products_periods_and_amounts",sep=""))
 
 
 # Get hitherto payments and ratios
@@ -221,7 +221,7 @@ select$left_to_pay <- select$final_credit_amount +
 is_vip_query <- paste(
   "SELECT id, is_vip
   FROM ",db_name,".clients",sep="")
-is_vip <- suppressWarnings(fetch(dbSendQuery(con, is_vip_query), n=-1))
+is_vip <- gen_query(con, is_vip_query)
 select <- merge(select,is_vip,by.x = "client_id",by.y = "id", all.x = TRUE)
 
 
@@ -413,8 +413,8 @@ po_old <- subset(po_old,po_old$time_past>0 & po_old$time_past<=360 &
 # Remove credits which have izpadejirali
 po_old$id <- po_old$application_id
 for (i in 1:nrow(po_old)){
-  po_old$last_padej[i] <- max(suppressWarnings(fetch(dbSendQuery(con, 
-      gen_plan_main_actives_past_query(db_name,po_old[i,])), n=-1))$pay_day)
+  po_old$last_padej[i] <- max(gen_query(con, 
+      gen_plan_main_actives_past_query(db_name,po_old[i,]))$pay_day)
 }
 po_to_remove <- subset(po_old,
       po_old$last_padej<=as.Date(substring(Sys.time(),1,10)))
@@ -495,7 +495,7 @@ if(substring(Sys.time(),9,10) %in% c("01")){
     "SELECT application_id, created_at, deleted_at, product_id, min_amount,
     max_amount, max_amount_updated, max_installment_updated
     FROM ",db_name,".prior_approval_refinances",sep="")
-  po_all <- suppressWarnings(fetch(dbSendQuery(con, po_sql_query), n=-1))
+  po_all <- gen_query(con, po_sql_query)
   po_all <- subset(po_all,is.na(po_all$deleted_at))
   
   po_all_not_ok <- subset(po_all,po_all$max_amount_updated==-999)
@@ -532,19 +532,18 @@ if(substring(Sys.time(),9,10) %in% c("01")){
 #######################################################
 
 # Read special cases (deceased and gdrk marketing clients) 
-get_special_sql <- suppressWarnings(dbSendQuery(con, paste("
+get_special_sql <- paste("
 SELECT id
 FROM ",db_name,".clients
-WHERE gdpr_marketing_messages=1 OR dead_at IS NOT NULL",sep="")))
-special <- fetch(get_special_sql,n=-1)
+WHERE gdpr_marketing_messages=1 OR dead_at IS NOT NULL",sep="")
+special <- gen_query(con,get_special_sql)
 
 # Remove special cases if has offer
 po_special_sql_query <- paste(
   "SELECT application_id, created_at
   FROM ",db_name,".prior_approval_refinances
   WHERE deleted_at IS NULL",sep="")
-po_special <- suppressWarnings(fetch(dbSendQuery(con, po_special_sql_query), 
-  n=-1))
+po_special <- gen_query(con, po_special_sql_query)
 po_special <- merge(po_special,all_credits[,c("id","client_id")],
                     by.x = "application_id",by.y = "id",all.x = TRUE)
 po_special <- po_special[po_special$client_id %in% special$id,]

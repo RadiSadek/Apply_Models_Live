@@ -35,9 +35,9 @@ main_dir <- "C:\\Projects\\Apply_Scoring\\"
 
 
 # Load other r files
-source(paste(main_dir,"Apply_Models\\Terminated_Radi.r",sep=""))
-source(paste(main_dir,"Apply_Models\\SQL_queries.r", sep=""))
-source(paste(main_dir,"Apply_Models\\Useful_Functions.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Terminated_Radi.r",sep=""))
+source(paste(main_dir,"Apply_Models_Live\\SQL_queries.r", sep=""))
+source(paste(main_dir,"Apply_Models_Live\\Useful_Functions.r", sep=""))
 
 
 # Define product id
@@ -50,17 +50,17 @@ product_id <- NA
 ###################################################
 
 # Read credit applications 
-get_actives_sql <- suppressWarnings(dbSendQuery(con, paste("
+get_actives_sql <- paste("
 SELECT id, status, date, signed_at, product_id, client_id, 
 deactivated_at, sub_status, office_id, consultant_id
 FROM ",db_name,".credits_applications 
-WHERE status IN (4,5)",sep="")))
-all_credits <- fetch(get_actives_sql,n=-1)
+WHERE status IN (4,5)",sep="")
+all_credits <- gen_query(con,get_actives_sql)
 
 
 # Get company ID
-company_id <- suppressWarnings(fetch(dbSendQuery(con, 
-    gen_get_company_id_query(db_name)), n=-1))
+company_id <- gen_query(con,
+    gen_get_company_id_query(db_name))
 all_credits <- merge(all_credits,company_id,by.x = "product_id",
     by.y = "id",all.x = TRUE)
 
@@ -83,10 +83,10 @@ all_credits <- rbind(
 
 
 # Get last credit amount
-credit_amount_sql <- suppressWarnings(dbSendQuery(con, paste("
+credit_amount_sql <- paste("
 SELECT application_id , amount as credit_amount
-FROM ",db_name,".credits_plan_contract", sep ="")))
-credit_amount <- fetch(credit_amount_sql,n=-1)
+FROM ",db_name,".credits_plan_contract", sep ="")
+credit_amount <- gen_query(con,credit_amount_sql)
 all_credits <- merge(all_credits,credit_amount,by.x = "id",
                      by.y = "application_id",all.x = TRUE)
 all_credits <- all_credits[rev(order(all_credits$date)),]
@@ -116,7 +116,7 @@ po_sql_query <- paste(
   "SELECT id, client_id, product_id, application_id, created_at, credit_amount,
   installment_amount,deleted_at,updated_at
   FROM ",db_name,".clients_prior_approval_applications",sep="")
-po <- suppressWarnings(fetch(dbSendQuery(con, po_sql_query), n=-1))
+po <- gen_query(con,po_sql_query)
 po <- merge(po,company_id,by.x = "product_id",by.y = "id",all.x = TRUE)
 po_raw <- po
 po_select_citycash <- po[is.na(po$deleted_at) & po$company_id==1,]
@@ -146,7 +146,7 @@ select_credits <- rbind(select_credits_citycash,select_credits_credirect)
 is_vip_query <- paste(
   "SELECT id, is_vip
   FROM ",db_name,".clients",sep="")
-is_vip <- suppressWarnings(fetch(dbSendQuery(con, is_vip_query), n=-1))
+is_vip <- gen_query(con,is_vip_query)
 select_credits <- merge(select_credits,is_vip,by.x = "client_id",
   by.y = "id", all.x = TRUE)
 
@@ -285,7 +285,7 @@ po_old <- subset(po_old,po_old$criteria==1)
 
 
 # Join if VIP
-is_vip <- suppressWarnings(fetch(dbSendQuery(con, is_vip_query), n=-1))
+is_vip <- gen_query(con,is_vip_query)
 po_old <- merge(po_old,is_vip,by.x = "client_id",
   by.y = "id", all.x = TRUE)
 
@@ -369,7 +369,7 @@ if(substring(Sys.time(),9,10)=="01"){
   created_at, credit_amount_updated,installment_amount_updated, deleted_at
   FROM ",db_name,".clients_prior_approval_applications
   WHERE deleted_at IS NULL",sep="")
-  po_all <- suppressWarnings(fetch(dbSendQuery(con,po_sql_query),n=-1))
+  po_all <- gen_query(con,po_sql_query)
   po_all <- merge(po_all,company_id,by.x = "product_id",
     by.y = "id",all.x = TRUE)
   po_all <- subset(po_all,po_all$company_id==1)
@@ -406,19 +406,18 @@ if(substring(Sys.time(),9,10)=="01"){
 #######################################################
 
 # Read special cases (deceased and gdrk marketing clients) 
-get_special_sql <- suppressWarnings(dbSendQuery(con, paste("
+get_special_sql <- paste("
 SELECT id
 FROM ",db_name,".clients
-WHERE gdpr_marketing_messages=1 OR dead_at IS NOT NULL",sep="")))
-special <- fetch(get_special_sql,n=-1)
+WHERE gdpr_marketing_messages=1 OR dead_at IS NOT NULL",sep="")
+special <- gen_query(con,get_special_sql)
 
 # Remove special cases if has offer
 po_get_special_query <- paste(
   "SELECT id, client_id
   FROM ",db_name,".clients_prior_approval_applications
   WHERE deleted_at IS NULL",sep="")
-po_special <- suppressWarnings(fetch(dbSendQuery(con, po_get_special_query), 
-                                     n=-1))
+po_special <- gen_query(con,po_get_special_query)
 po_special <- po_special[po_special$client_id %in% special$id,]
 
 if(nrow(po_special)>0){
@@ -429,7 +428,6 @@ if(nrow(po_special)>0){
    WHERE id IN",gen_string_po_terminated(po_special), sep="")
   suppressMessages(suppressWarnings(dbSendQuery(con,po_special_query)))
 }
-
 
 
 

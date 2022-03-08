@@ -5,8 +5,8 @@
 
 # Function to get company id of previous credits
 get_company_id_prev <- function(db_name,all_credits){
-  products_desc_all <- suppressWarnings(fetch(dbSendQuery(con, 
-      gen_get_company_id_query(db_name)), n=-1))
+  products_desc_all <- gen_query(con, 
+      gen_get_company_id_query(db_name))
   all_credits <- merge(all_credits, products_desc_all, 
        by.x = "product_id", by.y = "id", all.x = TRUE)
   return(all_credits)
@@ -51,10 +51,10 @@ gen_ratio_last_amount_paid <- function(db_name,all_credits,all_df,
       all_credits_actives$client_id),]
     
     if(nrow(all_credits_actives)>=1){
-      cash_flow_active <- suppressWarnings(fetch(dbSendQuery(con, 
-            gen_paid_amount_query(all_credits_actives$id,db_name)), n=-1))
-      total_amount_active <- suppressWarnings(fetch(dbSendQuery(con, 
-            gen_last_cred_amount_query(all_credits_actives$id,db_name)), n=-1))
+      cash_flow_active <- gen_query(con, 
+            gen_paid_amount_query(all_credits_actives$id,db_name))
+      total_amount_active <- gen_query(con, 
+            gen_last_cred_amount_query(all_credits_actives$id,db_name))
       
       # if actives and same company as application
       all_df$flag_high_last_paid <- ifelse(sum(cash_flow_active$amount)/
@@ -67,12 +67,10 @@ gen_ratio_last_amount_paid <- function(db_name,all_credits,all_df,
         order(all_credits_terminated$date)),]
       all_credits_terminated <- all_credits_terminated[!duplicated(
         all_credits_terminated$client_id),]
-      cash_flow_terminated <- suppressWarnings(fetch(dbSendQuery(con, 
-             gen_last_paid_amount_query(all_credits_terminated$id, db_name)), 
-                                                     n=-1))
-      total_amount_terminated <- suppressWarnings(fetch(dbSendQuery(con, 
-            gen_last_cred_amount_query(all_credits_terminated$id,db_name)), 
-                                                        n=-1))
+      cash_flow_terminated <- gen_query(con,
+             gen_last_paid_amount_query(all_credits_terminated$id, db_name))
+      total_amount_terminated <- gen_query(con, 
+            gen_last_cred_amount_query(all_credits_terminated$id,db_name))
       all_df$flag_high_last_paid <- ifelse(all_df$days_diff_last_credit %in% 
             c(0,1,2,NA) & sum(cash_flow_terminated$amount)/
             total_amount_terminated$final_credit_amount>=0.5, 1, 0)
@@ -142,14 +140,14 @@ gen_variables_for_rep <- function(all_id){
 # Function to get last amount paid of previous credit
 gen_last_paid <- function(all_id){
   var <- gen_variables_for_rep(all_id)
-  return(suppressWarnings(fetch(dbSendQuery(con, 
-     gen_last_paid_amount_query(var$id[nrow(var)-1],db_name)), n=-1)))
+  return(gen_query(con, 
+     gen_last_paid_amount_query(var$id[nrow(var)-1],db_name)))
 }
 
 # Function to get total amount paid of previous credit for refinance
 gen_total_last_paid <- function(var,db_name){
-  result <- suppressWarnings(fetch(dbSendQuery(con, 
-    gen_total_paid_amount_query(var,db_name)), n=-1))
+  result <- gen_query(con,
+    gen_total_paid_amount_query(var,db_name))
   result <- sum(result[,2])
   return(result)
 }
@@ -157,23 +155,23 @@ gen_total_last_paid <- function(var,db_name){
 # Function to get number of unique payment days of previous credit
 gen_prev_paid_days <- function(all_id){
   var <- gen_variables_for_rep(all_id)
-  result <- suppressWarnings(fetch(dbSendQuery(con, 
-     gen_all_payments_query(var$id[nrow(var)-1],db_name)), n=-1))
+  result <- gen_query(con, 
+     gen_all_payments_query(var$id[nrow(var)-1],db_name))
   return(length(unique(result$pay_date)))
 }
 
 # Function to get total amount (with taxes) of previous credit
 gen_last_total_amount <- function(all_id){
   var <- gen_variables_for_rep(all_id)
-  return(total_amount <- suppressWarnings(fetch(dbSendQuery(con, 
-     gen_last_cred_amount_query(var$id[nrow(var)-1],db_name)), n=-1)))
+  return(total_amount <- gen_query(con, 
+     gen_last_cred_amount_query(var$id[nrow(var)-1],db_name)))
 }
 
 # Function to get amount of previous credit
 gen_last_prev_amount <- function(all_id){
   var <- gen_variables_for_rep(all_id)
-  return(prev_amount <- suppressWarnings(fetch(dbSendQuery(con, 
-     gen_prev_amount_query(db_name,var)), n=-1)))
+  return(prev_amount <- gen_query(con, 
+     gen_prev_amount_query(db_name,var)))
 }
 
 # Function to select id of all previous credits
@@ -190,8 +188,8 @@ gen_select_relevant_ids <- function(all_id_max_delay,nrow_all_id_max_delay){
 gen_select_relevant_ids_max_delay <- function(db_name,all_actives_past,
                                               all_id_max_delay){
   
-  data_plan_main_actives_past <- suppressWarnings(fetch(dbSendQuery(con, 
-      gen_plan_main_actives_past_query(db_name,all_actives_past)), n=-1))
+  data_plan_main_actives_past <- gen_query(con, 
+      gen_plan_main_actives_past_query(db_name,all_actives_past))
   data_plan_main_actives_past$date_diff <- difftime(Sys.time(), 
       data_plan_main_actives_past$pay_day, units=c("days"))
   agg_passed_installments <- as.data.frame(aggregate(
@@ -212,15 +210,15 @@ gen_prev_max_installment <- function(db_name,input,all_df,application_id,crit){
   if(crit==0){
     input <- input[input$id!=application_id,]
   }
-  all_df$period <- suppressWarnings(fetch(dbSendQuery
-     (con,gen_products_query_desc(db_name,all_df[1,])), n=-1))$period
+  all_df$period <- gen_query(con,
+     gen_products_query_desc(db_name,all_df[1,]))$period
   
   for(i in 1:nrow(input)){
 
-    input$installment_amount[i] <- suppressWarnings(fetch(
-      dbSendQuery(con,gen_max_pmt_main(db_name,input$id[i])), n=-1))$max_pmt
-    input$period[i] <- suppressWarnings(fetch(dbSendQuery
-      (con,gen_products_query_desc(db_name,input[i,])), n=-1))$period
+    input$installment_amount[i] <- gen_query(con,
+      gen_max_pmt_main(db_name,input$id[i]))$max_pmt
+    input$period[i] <- gen_query(con,
+      gen_products_query_desc(db_name,input[i,]))$period
     
     if(input$period[i]!=all_df$period){
       input$installment_amount[i] <- gen_correct_max_installment_po(
@@ -240,14 +238,13 @@ gen_installment_ratio <- function(db_name,all_id,all_df,application_id,crit){
     all_id_here <- all_id_here[all_id_here$id!=application_id,]
   }
   for (i in 1:nrow(all_id_here)){
-    all_id_here$max_delay[i] <- fetch(dbSendQuery(
-      con,gen_plan_main_select_query(db_name,all_id_here$id[i])), 
-      n=-1)$max_delay
+    all_id_here$max_delay[i] <- gen_query(con,
+      gen_plan_main_select_query(db_name,all_id_here$id[i]))$max_delay
   }
   
   # Joint company ID to all_df
-  all_df$company_id <- suppressWarnings(fetch(dbSendQuery(con,
-    gen_products_query_desc(db_name,all_df)), n=-1))$company_id
+  all_df$company_id <- gen_query(con,
+    gen_products_query_desc(db_name,all_df))$company_id
   
   # Subset two dataframes , one with same company ID , one with different
   all_id_here_other_company <-  subset(all_id_here,

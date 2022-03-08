@@ -225,10 +225,8 @@ gen_query_ckr <- function(all_df,all_credits,type_of){
   ON ",db_name,".clients_ckr_files.id=",db_name,".clients_ckr_files_data.file_id
   WHERE ",db_name,".clients_ckr_files_data.type=",type_of," AND ",db_name,
                      ".clients_ckr_files.client_id=",all_df$client_id, sep ="")
-  result_df <- suppressWarnings(fetch(dbSendQuery(con, query_ckr), n=-1))
-  # result_df <- merge(result_df, all_credits[,c("id","date")], 
-  #                    by.x = "application_id",
-  #                    by.y = "id", all.x = TRUE)
+  result_df <- gen_query(con,query_ckr)
+
   if(nrow(result_df)==0){
     empty_df <- as.data.frame(cbind(NA,NA,NA,NA,NA,NA,NA,NA,NA))
     names(empty_df) <- names_col

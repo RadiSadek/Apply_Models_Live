@@ -8,14 +8,14 @@ gen_correction_po <- function(con,db_name,all_df,all_id,
                               scoring_df,products,period,application_id){
 
   # Read credits with already an offer for terminated prior approval
-  po <- suppressWarnings(fetch(dbSendQuery(con,
-           gen_po_terminated_query(db_name,all_df$client_id)), n=-1))
+  po <- gen_query(con,
+           gen_po_terminated_query(db_name,all_df$client_id))
   
   if(nrow(po)>=1){
     
     # Check if any credit after offer (of same company)
-    company_id <- suppressWarnings(fetch(dbSendQuery(con, 
-        gen_get_company_id_query(db_name)), n=-1))
+    company_id <- gen_query(con,
+        gen_get_company_id_query(db_name))
     po <- merge(po,company_id,by.x = "product_id",by.y = "id",all.x = TRUE)
     all_df_local <- merge(all_df,company_id,by.x = "product_id",
         by.y = "id",all.x = TRUE)
@@ -47,8 +47,8 @@ gen_correction_po <- function(con,db_name,all_df,all_id,
       if(nrow(all_id_local)==0 & po$final_time<=4){
         
         # Arrange installment amount according to period
-        period_po <- suppressWarnings(fetch(dbSendQuery(con, 
-           gen_products_query_desc(db_name,po)), n=-1))$period
+        period_po <- gen_query(con,
+           gen_products_query_desc(db_name,po))$period
         if(period_po!=period){
           po$installment_amount <- gen_correct_max_installment_po(period_po,
             period,po$installment_amount)
@@ -115,8 +115,8 @@ gen_correction_po_ref <- function(con,db_name,all_df,all_id,
   if(nrow(input)>0){
     
     # Read credits with already an offer for terminated prior approval
-    po_ref <- suppressWarnings(fetch(dbSendQuery(con,
-                gen_po_refinance_query(db_name,string_sql_update)), n=-1))
+    po_ref <- gen_query(con,
+                gen_po_refinance_query(db_name,string_sql_update))
     
     if(nrow(po_ref)>0){
       po_ref$final_time <- ifelse(is.na(po_ref$deleted_at),0,
@@ -199,16 +199,16 @@ gen_corection_early_repaid <- function(con,db_name,scoring_df,all_df,all_id,
   time_since <- ifelse(is.na(time_since),999,time_since)
   
   # Get total installments, passed installments of last credit
-  tot_installments <- suppressWarnings(fetch(dbSendQuery(con,
+  tot_installments <- gen_query(con,
     gen_last_cred_amount_query(
-    all_id_here$id,db_name)), n=-1))$installments
-  passed_installments <- suppressWarnings(fetch(dbSendQuery(con,
+    all_id_here$id,db_name))$installments
+  passed_installments <- gen_query(con,
     gen_passed_install_before_query(
-    db_name,all_id_here$id,Sys.time())), n=-1))$passed_installments
+    db_name,all_id_here$id,Sys.time()))$passed_installments
   
   # Get period of last credit (monthly,weekly...)
-  period <- suppressWarnings(fetch(dbSendQuery(con,
-    gen_products_query_desc(db_name,all_id_here)), n=-1))$period
+  period <- gen_query(con,
+    gen_products_query_desc(db_name,all_id_here))$period
   
   # Apply conditions
   if(time_since<=3){

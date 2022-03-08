@@ -56,38 +56,38 @@ product_id <- NA
 ###################################################
 
 # Read credit applications 
-get_actives_sql <- suppressWarnings(dbSendQuery(con, paste("
+get_actives_sql <- paste("
 SELECT id, status, date, signed_at, product_id, client_id, 
 deactivated_at, sub_status, office_id, consultant_id
 FROM ",db_name,".credits_applications 
-WHERE id= ",application_id,sep="")))
-all_credit <- fetch(get_actives_sql,n=-1)
+WHERE id= ",application_id,sep="")
+all_credit <- gen_query(con,get_actives_sql)
 
 
 # Get company ID
-company_id <- suppressWarnings(fetch(dbSendQuery(con, 
-    gen_get_company_id_query(db_name)), n=-1))
+company_id <- gen_query(con, 
+    gen_get_company_id_query(db_name))
 all_credit <- merge(all_credit,company_id,by.x = "product_id",
     by.y = "id",all.x = TRUE)
 
 
 # Get last credit amount
-credit_amount_sql <- suppressWarnings(dbSendQuery(con, paste("
+credit_amount_sql <- paste("
 SELECT application_id , amount as credit_amount
 FROM ",db_name,".credits_plan_contract 
-WHERE application_id=",application_id,sep ="")))
-credit_amount <- fetch(credit_amount_sql,n=-1)
+WHERE application_id=",application_id,sep ="")
+credit_amount <- gen_query(con,credit_amount_sql)
 all_credit$credit_amount <- credit_amount$credit_amount
 
 
 # Get flagged GDPR marketing campaigns
-flag_gdpr <- suppressWarnings(fetch(dbSendQuery(con,
-  gen_flag_gdpr(db_name,all_credit$client_id)), n=-1))$gdpr_marketing_messages
+flag_gdpr <- gen_query(con,
+  gen_flag_gdpr(db_name,all_credit$client_id))$gdpr_marketing_messages
 
 
 # Get max DPD on current credit
-max_dpd <- suppressWarnings(fetch(dbSendQuery(con,
-  gen_plan_main_select_query(db_name,application_id)), n=-1))$max_delay
+max_dpd <- gen_query(con,
+  gen_plan_main_select_query(db_name,application_id))$max_delay
 
 
 
@@ -114,19 +114,19 @@ if(all_credit$product_id %in% c(12,13,59:65,53,54,51,22)){
 
 
 # Remove according to criteria of passed installments
-get_main_sql <- suppressWarnings(dbSendQuery(con, paste(
+get_main_sql <- paste(
 "SELECT pay_day
 FROM ",db_name,".credits_plan_main 
-WHERE application_id = ",application_id, sep="")))
-plan_main <-  fetch(get_main_sql,n=-1)
+WHERE application_id = ",application_id, sep="")
+plan_main <- gen_query(con,get_main_sql)
 all_credit$tot_installments <- nrow(plan_main)
 all_credit$passed_installments <- length(plan_main[
   plan_main$pay_day<=Sys.time(),])
-get_period_sql <- suppressWarnings(dbSendQuery(con, paste(
+get_period_sql <- paste(
 "SELECT period 
 FROM ",db_name,".products 
-WHERE id= ",all_credit$product_id,sep="")))
-all_credit$period <- fetch(get_period_sql,n=-1)$period
+WHERE id= ",all_credit$product_id,sep="")
+all_credit$period <- gen_query(con,get_period_sql)$period
 flag_credit_next_salary <- ifelse(all_credit$product_id %in% 
     c(25:28,36,37,41:44,49,50,55:58,67,68), 1, 0)
 if((flag_credit_next_salary==1 & all_credit$passed_installments==0) |
@@ -146,11 +146,11 @@ flag_limit_offer <- ifelse(all_credit$sub_status==123,1,0)
 
 
 # Remove if more than 1 "varnat"
-get_status_sql <- suppressWarnings(dbSendQuery(con, paste("
+get_status_sql <- paste("
 SELECT id, status, sub_status, product_id
 FROM ",db_name,".credits_applications 
-WHERE client_id= ",all_credit$client_id,sep="")))
-all_credit_status <- fetch(get_status_sql,n=-1)
+WHERE client_id= ",all_credit$client_id,sep="")
+all_credit_status <- gen_query(con,get_status_sql)
 all_credit_varnat <- subset(all_credit_status,all_credit_status$sub_status==122)
 if(nrow(all_credit_varnat)>1){
   quit()
@@ -162,7 +162,7 @@ po_sql_query <- paste(
   "SELECT id, client_id, product_id, application_id, created_at, credit_amount,
   installment_amount,deleted_at,updated_at
   FROM ",db_name,".clients_prior_approval_applications",sep="")
-po <- suppressWarnings(fetch(dbSendQuery(con, po_sql_query), n=-1))
+po <- gen_query(con, po_sql_query)
 po_raw <- po
 po <- subset(po,po$client_id==all_credit$client_id)
 po <- merge(po,company_id,by.x = "product_id",by.y = "id",all.x = TRUE)
@@ -188,7 +188,7 @@ is_vip_query <- paste(
   "SELECT id, is_vip
   FROM ",db_name,".clients 
   WHERE id=",all_credit$client_id,sep="")
-is_vip <- suppressWarnings(fetch(dbSendQuery(con, is_vip_query), n=-1))
+is_vip <- gen_query(con, is_vip_query)
 all_credit <- merge(all_credit,is_vip,by.x = "client_id",
   by.y = "id", all.x = TRUE)
 
@@ -245,7 +245,7 @@ all_credit <- subset(all_credit,all_credit$max_delay<=200)
 id_max_query <- paste(
   "SELECT MAX(id) as max_id
   FROM ",db_name,".clients_prior_approval_applications",sep="")
-id_max <- suppressWarnings(fetch(dbSendQuery(con,id_max_query), n=-1))$max_id+1
+id_max <- gen_query(con,id_max_query)$max_id+1
 
 if(nrow(all_credit)>0){
 

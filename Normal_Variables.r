@@ -56,8 +56,7 @@ gen_norm_var2 <- function(df){
 
 # Function to generate SEON variables
 gen_seon_phones <- function(db_name,criteria,var){
-  return(suppressWarnings(fetch(dbSendQuery(con, 
-  gen_seon_phones_query(db_name,criteria,var)), n=-1)))
+  return(gen_query(con,gen_seon_phones_query(db_name,criteria,var)))
 }
 
 
